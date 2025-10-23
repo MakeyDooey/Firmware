@@ -1,0 +1,6 @@
+../Core/Src/main.c:98:5:main	16	static
+../Core/Src/main.c:241:7:SystemClock_Config	120	static
+../Core/Src/main.c:291:14:MX_TIM2_Init	48	static
+../Core/Src/main.c:342:14:MX_TIM3_Init	56	static
+../Core/Src/main.c:389:14:MX_GPIO_Init	48	static
+../Core/Src/main.c:454:7:Error_Handler	4	static,ignoring_inline_asm
