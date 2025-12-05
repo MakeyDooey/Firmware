@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nucleo Terminal (Paced)</title>
+    <style>
+        /* SAME STYLES AS BEFORE */
+        body { font-family: monospace; background: #111; color: #0f0; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        .controls { background: #222; padding: 10px; border-bottom: 1px solid #444; display: flex; gap: 10px; align-items: center; }
+        button, select { padding: 8px; background: #333; color: white; border: 1px solid #555; cursor: pointer; }
+        button:hover { background: #444; }
+        button.connected { background: #d32f2f; }
+        .main { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 280px; background: #1a1a1a; border-right: 1px solid #333; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+        .terminal { flex: 1; background: #000; padding: 10px; white-space: pre-wrap; overflow-y: auto; font-size: 14px; }
+        .input-group { background: #252525; padding: 5px; border: 1px solid #333; }
+        .input-group label { display: block; color: #888; font-size: 0.8em; }
+        .input-group input { width: 100%; box-sizing: border-box; background: #000; border: 1px solid #444; color: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="controls">
+    <button id="btnConnect">🔌 Connect</button>
+    <select id="baudRate"><option value="115200" selected>115200</option><option value="9600">9600</option></select>
+    <label style="color:#aaa">Delay(ms):</label>
+    <input type="number" id="charDelay" value="10" style="width:50px; background:#333; color:#fff; border:1px solid #555;">
+    <select id="lineEnding"><option value="\r">\r (CR)</option><option value="\n">\n (LF)</option></select>
+    <button id="btnClear">Clear</button>
+</div>
+
+<div class="main">
+    <div class="sidebar">
+        <h3>Command Builder</h3>
+        <select id="cmdSelect" style="width:100%; padding:5px; margin-bottom:10px;"></select>
+        <div id="paramContainer"></div>
+        <button id="btnSend" style="background:#0056b3; margin-top:10px;" disabled>Send Command</button>
+        <hr style="width:100%; border-color:#444;">
+        <input type="text" id="manualInput" placeholder="Type & Enter..." style="width:100%; padding:8px; background:#000; border:1px solid #444; color:#0f0;" disabled>
+    </div>
+    <div class="terminal" id="termOutput"></div>
+</div>
+
+<script>
+    // --- CONFIG ---
+    const COMMANDS = {
+        "hello": { params: [] },
+        "toggle-led": { params: [] },
+        "uart_send": { params: [{ label: "Message", val: "test" }] },
+        "echo_send": { params: [{ label: "String", val: "123" }] },
+        "set_pid": { params: [ { label: "Kp", val: "1.0" }, { label: "Ki", val: "0.0" }, { label: "Kd", val: "0.0" }, { label: "Mode", val: "1" } ]},
+        "get_pid": { params: [] }
+    };
+
+    let port, writer, reader; 
+    
+    const ui = {
+        connect: document.getElementById('btnConnect'),
+        send: document.getElementById('btnSend'),
+        term: document.getElementById('termOutput'),
+        select: document.getElementById('cmdSelect'),
+        params: document.getElementById('paramContainer'),
+        manual: document.getElementById('manualInput'),
+        delay: document.getElementById('charDelay')
+    };
+
+    // --- SETUP UI ---
+    Object.keys(COMMANDS).forEach(c => ui.select.add(new Option(c, c)));
+    ui.select.addEventListener('change', renderParams);
+    renderParams();
+
+    function renderParams() {
+        ui.params.innerHTML = '';
+        COMMANDS[ui.select.value].params.forEach((p, i) => {
+            ui.params.innerHTML += `<div class="input-group"><label>${p.label}</label><input id="p${i}" value="${p.val}"></div>`;
+        });
+    }
+
+    // --- CONNECTION ---
+    ui.connect.addEventListener('click', async () => {
+        if (port) { // Disconnect
+            if(reader) await reader.cancel();
+            if(writer) await writer.close();
+            await port.close();
+            port = null;
+            ui.connect.innerText = "🔌 Connect";
+            ui.connect.classList.remove("connected");
+            ui.send.disabled = ui.manual.disabled = true;
+            return;
+        }
+        try {
+            port = await navigator.serial.requestPort();
+            await port.open({ baudRate: parseInt(document.getElementById('baudRate').value) });
+            await port.setSignals({ dataTerminalReady: true, requestToSend: true }); // Force DTR
+
+            const enc = new TextEncoderStream();
+            enc.readable.pipeTo(port.writable);
+            writer = enc.writable.getWriter();
+
+            const dec = new TextDecoderStream();
+            port.readable.pipeTo(dec.writable);
+            reader = dec.readable.getReader();
+            
+            readLoop();
+
+            ui.connect.innerText = "❌ Disconnect";
+            ui.connect.classList.add("connected");
+            ui.send.disabled = ui.manual.disabled = false;
+        } catch (e) { alert(e); }
+    });
+
+    async function readLoop() {
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            ui.term.textContent += value;
+            ui.term.scrollTop = ui.term.scrollHeight;
+        }
+    }
+
+    // --- THE FIX: PACED SENDING ---
+    async function sendData(str) {
+        if (!writer) return;
+        
+        // 1. Get Line Ending
+        const end = document.getElementById('lineEnding').value.replace("\\r", "\r").replace("\\n", "\n");
+        const payload = str + end;
+        
+        // 2. Get Delay (default 10ms)
+        const delayMs = parseInt(ui.delay.value) || 10;
+
+        // 3. Send Character by Character with Delay
+        // This prevents "UART Overrun" on the Nucleo
+        for (const char of payload) {
+            await writer.write(char);
+            if (delayMs > 0) await new Promise(r => setTimeout(r, delayMs));
+        }
+    }
+
+    // --- HANDLERS ---
+    ui.send.addEventListener('click', () => {
+        let cmd = ui.select.value;
+        COMMANDS[cmd].params.forEach((p, i) => cmd += " " + document.getElementById(`p${i}`).value);
+        sendData(cmd);
+    });
+
+    ui.manual.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            sendData(ui.manual.value);
+            ui.manual.value = '';
+        }
+    });
+    
+    document.getElementById('btnClear').addEventListener('click', () => ui.term.textContent = '');
+
+</script>
+</body>
+</html>
