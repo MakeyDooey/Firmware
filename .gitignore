@@ -1,0 +1,38 @@
+# --- Build Artifacts (Make/CMake) ---
+build/
+bin/
+obj/
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+*.o
+*.d
+*.su
+
+# --- Toolchain / GDB / OpenOCD ---
+.gdb_history
+openocd.log
+*.svd        # If you download SVDs for peripheral viewing, keep them local
+.gdbinit     # Only ignore if it contains local paths/secrets
+
+# --- Neovim & LSP (LazyVim/Clangd) ---
+.nvim/
+.lsp/
+.clangd/     # Clangd indexer folder
+compile_commands.json
+.undodir/    # If you've configured persistent undo in Neovim
+*.swp
+*.swo
+Session.vim
+
+# --- Python / Scripts ---
+# Useful if you use Python for post-processing or flashing scripts
+__pycache__/
+*.py[cod]
+
+# --- OS & Misc ---
+.DS_Store
+.direnv/     # If using direnv for toolchain paths
+.envrc
