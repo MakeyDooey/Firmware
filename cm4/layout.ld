@@ -5,7 +5,7 @@ MEMORY
     /* Bank 2: 1MB */
     FLASH (rx) : ORIGIN = 0x08100000, LENGTH = 1024K
     /* SRAM4: 64KB (Accessible by D3 domain) */
-    RAM (rwx)  : ORIGIN = 0x38000000, LENGTH = 64K
+    RAM (rwx)  : ORIGIN = 0x38000100, LENGTH = 63K
 }
 
 SECTIONS

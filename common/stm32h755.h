@@ -12,6 +12,10 @@
 #define GPIOB_MODER (*(volatile unsigned int *)(GPIOB_BASE + 0x00))
 #define GPIOB_ODR (*(volatile unsigned int *)(GPIOB_BASE + 0x14))
 
+// Shared Memory Location
+#define SHARED_VAL_ADDR 0x38000000
+#define SHARED_VAL (*(volatile unsigned int *)SHARED_VAL_ADDR)
+
 // Utility Function Prototype
 void delay(volatile int count);
 

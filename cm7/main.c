@@ -8,6 +8,8 @@ void main(void) {
     __asm__("nop");
   }
 
+  SHARED_VAL = 10;
+
   GPIOB_MODER &= ~(0x3); // Setup PB0 (Yellow)
   GPIOB_MODER |= (0x1);
 
