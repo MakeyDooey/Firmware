@@ -17,7 +17,13 @@ void main(void) {
 
   RCC_GCR |= (1 << 0); // Wake up Cortex-M4
 
+  unsigned int val = 1;
   while (1) {
+    val = (val >= 10) ? 1 : val + 1;
+    SHARED_VAL = val;
+
+    flush_cache_addr(SHARED_VAL_ADDR);
+
     GPIOB_ODR ^= (1 << 0);
     delay(2000000);
   }

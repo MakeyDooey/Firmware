@@ -6,9 +6,13 @@ void main(void) {
   GPIOB_MODER |= (0x1 << 28);
 
   while (1) {
-    unsigned int speed_multiplier = SHARED_VAL + 1;
+    __asm__("dsb");
+
+    unsigned int val = SHARED_VAL;
+    unsigned int speed = (val > 0) ? val : 1;
+
     GPIOB_ODR ^= (1 << 14);
-    delay(2000000 * speed_multiplier);
+    delay(200000 * speed);
   }
 }
 
