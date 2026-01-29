@@ -1,23 +1,27 @@
-# ~/Firmware/Makefile
 CC = arm-none-eabi-gcc
 OBJCOPY = arm-none-eabi-objcopy
+CFLAGS = -mthumb -g -O0 -Icommon -nostartfiles
 
-CFLAGS = -mcpu=cortex-m7 -mthumb -g -O0
-LDFLAGS = -T cm7/layout.ld -nostartfiles
+# Common objects
+COMMON_SRC = common/utils.c
 
-BUILD_DIR = build
+all: build/cm7.bin build/cm4.bin
 
-all: $(BUILD_DIR)/blink.bin
+build/cm7.elf: cm7/main.c $(COMMON_SRC) cm7/layout.ld
+	mkdir -p build
+	$(CC) $(CFLAGS) -mcpu=cortex-m7 -T cm7/layout.ld cm7/main.c $(COMMON_SRC) -o $@
 
-$(BUILD_DIR)/blink.elf: cm7/main.c cm7/layout.ld
-	mkdir -p $(BUILD_DIR)
-	$(CC) $(CFLAGS) $(LDFLAGS) cm7/main.c -o $@
+build/cm4.elf: cm4/main.c $(COMMON_SRC) cm4/layout.ld
+	mkdir -p build
+	$(CC) $(CFLAGS) -mcpu=cortex-m4 -T cm4/layout.ld cm4/main.c $(COMMON_SRC) -o $@
 
-$(BUILD_DIR)/blink.bin: $(BUILD_DIR)/blink.elf
+%.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
 
-clean:
-	rm -rf $(BUILD_DIR)
+flash: all
+	openocd -f openocd.cfg \
+	-c "program build/cm7.bin 0x08000000 verify" \
+	-c "program build/cm4.bin 0x08100000 verify reset exit"
 
-flash: $(BUILD_DIR)/blink.bin
-	openocd -f openocd.cfg -c "program $(BUILD_DIR)/blink.bin verify reset exit 0x08000000"
+clean:
+	rm -rf build

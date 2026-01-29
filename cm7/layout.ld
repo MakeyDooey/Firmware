@@ -1,3 +1,4 @@
+/* cm7/layout.ld */
 
 MEMORY
 {
@@ -12,10 +13,9 @@ SECTIONS
         KEEP(*(.isr_vector))
         *(.text*)
         *(.rodata*)
-        
-        /* Force 32-byte alignment at the end of the section */
         . = ALIGN(32);
     } > FLASH
 
+    /* The Stack Pointer MUST be 8-byte aligned */
     _estack = ORIGIN(RAM) + LENGTH(RAM);
 }
