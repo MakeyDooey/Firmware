@@ -12,3 +12,7 @@
 
 * **openocd**: Interface for flashing via ST-LINK
 * **gdb-multiarch**: Debugger for ARM cores
+
+## Optional Tools
+
+* bear: generates compilation database for code analysis tools

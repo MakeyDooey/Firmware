@@ -28,8 +28,14 @@ CM4       := cm4
 PCH_M7_DIR := $(BUILD_DIR)/pch/cm7
 PCH_M4_DIR := $(BUILD_DIR)/pch/cm4
 
+# Sources and Includes
+COMMON_INC  := $(COMMON)/inc
+COMMON_SRCS := $(COMMON)/src/utils.c
+
+# --- Flags ---
+# -I$(COMMON_INC) allows you to use #include "common.h"
 CFLAGS_BASE := -mthumb -g $(OPT_FLAGS) -Wall -nostartfiles -Winvalid-pch \
-               -I$(COMMON)/inc -I$(CM7)/inc -I$(CM4)/inc
+               -I$(COMMON_INC) -I$(CM7)/inc -I$(CM4)/inc
 
 M7_FLAGS := -mcpu=cortex-m7 -DCORE_CM7 $(CFLAGS_BASE) -I$(PCH_M7_DIR)
 M4_FLAGS := -mcpu=cortex-m4 -DCORE_CM4 $(CFLAGS_BASE) -I$(PCH_M4_DIR)
@@ -37,7 +43,7 @@ M4_FLAGS := -mcpu=cortex-m4 -DCORE_CM4 $(CFLAGS_BASE) -I$(PCH_M4_DIR)
 # --- Targets ---
 .PHONY: all clean flash wipe debug debug-server size
 
-all: 
+all:
 	@START_TIME=$$(date +%s); \
 	$(MAKE) --no-print-directory build_binaries; \
 	END_TIME=$$(date +%s); \
@@ -47,25 +53,27 @@ build_binaries: $(BUILD_DIR)/cm7.bin $(BUILD_DIR)/cm4.bin
 	@$(SIZE) -B $(BUILD_DIR)/*.elf
 	@ccache -s | grep -E "cache hit|calls" || true
 
-$(PCH_M7_DIR)/common.h.gch: $(COMMON)/inc/common.h
+# Precompiled Header Rules
+$(PCH_M7_DIR)/common.h.gch: $(COMMON_INC)/common.h
 	@echo "$(YELLOW)  PCH [M7]$(NC)"
 	@mkdir -p $(PCH_M7_DIR)
 	@$(CC) $(M7_FLAGS) -x c-header $< -o $@
 
-$(PCH_M4_DIR)/common.h.gch: $(COMMON)/inc/common.h
+$(PCH_M4_DIR)/common.h.gch: $(COMMON_INC)/common.h
 	@echo "$(YELLOW)  PCH [M4]$(NC)"
 	@mkdir -p $(PCH_M4_DIR)
 	@$(CC) $(M4_FLAGS) -x c-header $< -o $@
 
-$(BUILD_DIR)/cm7.elf: $(CM7)/src/main.c $(COMMON)/src/utils.c $(PCH_M7_DIR)/common.h.gch
+# ELF Compilation
+$(BUILD_DIR)/cm7.elf: $(CM7)/src/main.c $(COMMON_SRCS) $(PCH_M7_DIR)/common.h.gch
 	@echo "$(CYAN)  CC  [M7]$(NC)"
 	@mkdir -p $(BUILD_DIR)
-	@$(CC) $(M7_FLAGS) -T $(CM7)/layout.ld $(CM7)/src/main.c $(COMMON)/src/utils.c -o $@
+	@$(CC) $(M7_FLAGS) -T $(CM7)/layout.ld $(CM7)/src/main.c $(COMMON_SRCS) -o $@
 
-$(BUILD_DIR)/cm4.elf: $(CM4)/src/main.c $(COMMON)/src/utils.c $(PCH_M4_DIR)/common.h.gch
+$(BUILD_DIR)/cm4.elf: $(CM4)/src/main.c $(COMMON_SRCS) $(PCH_M4_DIR)/common.h.gch
 	@echo "$(CYAN)  CC  [M4]$(NC)"
 	@mkdir -p $(BUILD_DIR)
-	@$(CC) $(M4_FLAGS) -T $(CM4)/layout.ld $(CM4)/src/main.c $(COMMON)/src/utils.c -o $@
+	@$(CC) $(M4_FLAGS) -T $(CM4)/layout.ld $(CM4)/src/main.c $(COMMON_SRCS) -o $@
 
 $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf
 	@$(OBJCOPY) -O binary $< $@

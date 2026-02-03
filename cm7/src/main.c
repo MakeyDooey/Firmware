@@ -1,4 +1,4 @@
-#include "../../common/inc/common.h"
+#include "common.h"
 
 int main(void) {
   RCC_AHB4ENR |= (1 << 1); // Enable GPIOB Clock

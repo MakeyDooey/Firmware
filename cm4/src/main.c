@@ -1,4 +1,4 @@
-#include "../../common/inc/common.h"
+#include "common.h"
 
 int main(void) {
   // Clock already enabled by CM7
