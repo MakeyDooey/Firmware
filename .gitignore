@@ -11,28 +11,31 @@ obj/
 *.d
 *.su
 
+# --- Precompiled Headers (PCH) ---
+# .gch files are the binary output of your common.h pre-compilation
+*.gch
+
 # --- Toolchain / GDB / OpenOCD ---
 .gdb_history
 openocd.log
-*.svd        # If you download SVDs for peripheral viewing, keep them local
-.gdbinit     # Only ignore if it contains local paths/secrets
+*.svd
+.gdbinit
+# Added ccache local directory if you ever use a local cache
+.ccache/
 
 # --- Neovim & LSP (LazyVim/Clangd) ---
 .nvim/
 .lsp/
-.clangd/     # Clangd indexer folder
+.clangd/
+# Clangd often creates this file to store local configuration
+.clangd
 compile_commands.json
-.undodir/    # If you've configured persistent undo in Neovim
+.undodir/
 *.swp
 *.swo
 Session.vim
 
-# --- Python / Scripts ---
-# Useful if you use Python for post-processing or flashing scripts
-__pycache__/
-*.py[cod]
-
 # --- OS & Misc ---
 .DS_Store
-.direnv/     # If using direnv for toolchain paths
+.direnv/
 .envrc

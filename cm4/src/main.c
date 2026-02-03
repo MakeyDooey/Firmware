@@ -1,6 +1,6 @@
-#include "../common/stm32h755.h"
+#include "../../common/inc/common.h"
 
-void main(void) {
+int main(void) {
   // Clock already enabled by CM7
   GPIOB_MODER &= ~(0x3 << 28); // Setup PB14 (Red)
   GPIOB_MODER |= (0x1 << 28);
@@ -14,6 +14,8 @@ void main(void) {
     GPIOB_ODR ^= (1 << 14);
     delay(200000 * speed);
   }
+
+  return 0;
 }
 
 void Reset_Handler(void) { main(); }

@@ -1,7 +1,6 @@
+#include "../../common/inc/common.h"
 
-#include "../common/stm32h755.h"
-
-void main(void) {
+int main(void) {
   RCC_AHB4ENR |= (1 << 1); // Enable GPIOB Clock
 
   for (int ii = 0; ii < 100; ii++) {
@@ -27,6 +26,8 @@ void main(void) {
     GPIOB_ODR ^= (1 << 0);
     delay(2000000);
   }
+
+  return 0;
 }
 
 void Reset_Handler(void) { main(); }
