@@ -1,11 +1,8 @@
-/* cm4/layout.ld */
-
 MEMORY
 {
-    /* Bank 2: 1MB */
-    FLASH (rx) : ORIGIN = 0x08100000, LENGTH = 1024K
-    /* SRAM4: 64KB (Accessible by D3 domain) */
-    RAM (rwx)  : ORIGIN = 0x38000100, LENGTH = 63K
+    /* CM4 can run from Flash, but let's use a specific offset or RAM for this example */
+    FLASH (rx) : ORIGIN = 0x08100000, LENGTH = 1024K 
+    RAM (rwx)  : ORIGIN = 0x10000000, LENGTH = 288K  /* DTCM for CM4 */
 }
 
 SECTIONS
@@ -15,9 +12,27 @@ SECTIONS
         KEEP(*(.isr_vector))
         *(.text*)
         *(.rodata*)
-        . = ALIGN(32);
+        . = ALIGN(4);
     } > FLASH
 
-    /* Stack pointer for M4 */
+    _sidata = LOADADDR(.data);
+
+    .data :
+    {
+        _sdata = .;
+        *(.data*)
+        . = ALIGN(4);
+        _edata = .;
+    } > RAM AT > FLASH
+
+    .bss :
+    {
+        _sbss = .;
+        *(.bss*)
+        *(COMMON)
+        . = ALIGN(4);
+        _ebss = .;
+    } > RAM
+
     _estack = ORIGIN(RAM) + LENGTH(RAM);
 }

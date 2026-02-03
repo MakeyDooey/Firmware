@@ -1,5 +1,3 @@
-/* cm7/layout.ld */
-
 MEMORY
 {
     FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 1024K
@@ -13,9 +11,29 @@ SECTIONS
         KEEP(*(.isr_vector))
         *(.text*)
         *(.rodata*)
-        . = ALIGN(32);
+        . = ALIGN(4);
+        _etext = .;
     } > FLASH
 
-    /* The Stack Pointer MUST be 8-byte aligned */
+    /* Used by startup to copy data from FLASH to RAM */
+    _sidata = LOADADDR(.data);
+
+    .data :
+    {
+        _sdata = .;
+        *(.data*)
+        . = ALIGN(4);
+        _edata = .;
+    } > RAM AT > FLASH
+
+    .bss :
+    {
+        _sbss = .;
+        *(.bss*)
+        *(COMMON)
+        . = ALIGN(4);
+        _ebss = .;
+    } > RAM
+
     _estack = ORIGIN(RAM) + LENGTH(RAM);
 }

@@ -1,23 +1,17 @@
 #include "common.h"
 
+#define LED_RED_PIN 14
+
 int main(void) {
-  // Clock already enabled by CM7
-  GPIOB_MODER &= ~(0x3 << 28); // Setup PB14 (Red)
-  GPIOB_MODER |= (0x1 << 28);
+  /* Enable Clock for GPIOB */
+  RCC_AHB4ENR |= RCC_AHB4ENR_GPIOBEN;
+
+  /* Setup PB14 as Output */
+  GPIOB_MODER &= ~(0x3 << (LED_RED_PIN * 2));
+  GPIOB_MODER |= (GPIO_MODER_OUT << (LED_RED_PIN * 2));
 
   while (1) {
-    __asm__("dsb");
-
-    unsigned int val = SHARED_VAL;
-    unsigned int speed = (val > 0) ? val : 1;
-
-    GPIOB_ODR ^= (1 << 14);
-    delay(200000 * speed);
+    GPIOB_ODR ^= (1 << LED_RED_PIN); // Toggle Red
+    delay(2000000);
   }
-
-  return 0;
 }
-
-void Reset_Handler(void) { main(); }
-__attribute__((section(".isr_vector"))) unsigned int *my_vectors[] = {
-    (unsigned int *)0x38010000, (unsigned int *)Reset_Handler};

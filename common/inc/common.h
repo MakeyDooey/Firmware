@@ -12,8 +12,8 @@
 #define COMMON_H
 
 #include "stm32h755.h"
+#include "uart.h"
 #include "utils.h"
-
 /**
  * @def PROJECT_NAME
  * @brief The formal name of the firmware project.

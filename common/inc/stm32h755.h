@@ -1,32 +1,40 @@
 #ifndef STM32H755_H
 #define STM32H755_H
 
-/* Hardware Base Addresses */
+/* Peripheral Base Addresses */
 #define RCC_BASE 0x58024400
 #define GPIOB_BASE 0x58020400
-#define MPU_BASE 0xE000ED90
+#define GPIOD_BASE 0x58020C00
+#define USART3_BASE 0x40004800
 
-/* RCC & GPIO Registers */
+/* RCC Registers */
 #define RCC_AHB4ENR (*(volatile unsigned int *)(RCC_BASE + 0xE0))
+#define RCC_APB1LENR (*(volatile unsigned int *)(RCC_BASE + 0xE8))
 #define RCC_GCR (*(volatile unsigned int *)(RCC_BASE + 0x00))
+
+#define RCC_AHB4ENR_GPIOBEN (1 << 1)
+#define RCC_AHB4ENR_GPIODEN (1 << 3)
+#define RCC_APB1LENR_USART3EN (1 << 18)
+#define RCC_GCR_BOOT_C4 (1 << 0)
+
+/* GPIO Registers */
 #define GPIOB_MODER (*(volatile unsigned int *)(GPIOB_BASE + 0x00))
 #define GPIOB_ODR (*(volatile unsigned int *)(GPIOB_BASE + 0x14))
+#define GPIOD_MODER (*(volatile unsigned int *)(GPIOD_BASE + 0x00))
+#define GPIOD_AFRH (*(volatile unsigned int *)(GPIOD_BASE + 0x24))
 
-/* Shared Memory (First 256 bytes of SRAM4) */
-#define SHARED_VAL_ADDR 0x38000000
-#define SHARED_VAL (*(volatile unsigned int *)SHARED_VAL_ADDR)
+#define GPIO_MODER_OUT (1)
+#define GPIO_MODER_AF (2)
 
-/* MPU Registers (Cortex-M7) */
-#define MPU_CTRL (*(volatile unsigned int *)(MPU_BASE + 0x04))
-#define MPU_RNR (*(volatile unsigned int *)(MPU_BASE + 0x08))
-#define MPU_RBAR (*(volatile unsigned int *)(MPU_BASE + 0x0C))
-#define MPU_RASR (*(volatile unsigned int *)(MPU_BASE + 0x10))
+/* USART3 Registers */
+#define USART3_CR1 (*(volatile unsigned int *)(USART3_BASE + 0x00))
+#define USART3_BRR (*(volatile unsigned int *)(USART3_BASE + 0x0C))
+#define USART3_ISR (*(volatile unsigned int *)(USART3_BASE + 0x1C))
+#define USART3_TDR (*(volatile unsigned int *)(USART3_BASE + 0x28))
 
-// SCB_DCCMVAC: Data Cache Clean by MVA to PoC (Point of Coherency)
-#define SCB_DCCMVAC (*(volatile unsigned int *)0xE000EF68)
-
-/* Common Functions */
-void delay(volatile int count);
-void flush_cache_addr(unsigned int addr);
+#define USART_CR1_UE (1 << 0)
+#define USART_CR1_RE (1 << 2)
+#define USART_CR1_TE (1 << 3)
+#define USART_ISR_TXE (1 << 7)
 
 #endif
