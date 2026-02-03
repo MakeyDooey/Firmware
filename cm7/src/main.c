@@ -11,6 +11,9 @@ int main(void) {
 
   /* Wake up the CM4 core */
   uart_puts("CM7: Releasing CM4 from reset...\n");
+
+  delay(1000);
+
   RCC_GCR |= RCC_GCR_BOOT_C4;
 
   while (1) {

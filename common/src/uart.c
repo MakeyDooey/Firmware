@@ -1,22 +1,22 @@
 #include "common.h"
 
 void uart_init(void) {
-  /* 1. Enable Clocks for GPIOD and USART3 */
+  // 1. Enable Clocks
   RCC_AHB4ENR |= RCC_AHB4ENR_GPIODEN;
   RCC_APB1LENR |= RCC_APB1LENR_USART3EN;
 
-  /* 2. PD8 (TX) and PD9 (RX) as Alternate Function */
-  GPIOD_MODER &= ~((0x3 << 16) | (0x3 << 18));
-  GPIOD_MODER |= ((GPIO_MODER_AF << 16) | (GPIO_MODER_AF << 18));
+  // 2. Clear and Set Mode for PD8 and PD9 (Bits 16-19)
+  GPIOD_MODER &= ~(0xF << 16);
+  GPIOD_MODER |= (GPIO_MODER_AF << 16) | (GPIO_MODER_AF << 18);
 
-  /* 3. Map to AF7 (USART3) in AFR High register */
-  GPIOD_AFRH &= ~((0xF << 0) | (0xF << 4));
-  GPIOD_AFRH |= ((0x7 << 0) | (0x7 << 4));
+  // 3. AFRH: PD8 is AF7 (bits 0-3), PD9 is AF7 (bits 4-7)
+  GPIOD_AFRH &= ~(0xFF << 0);
+  GPIOD_AFRH |= (0x77 << 0);
 
-  /* 4. Baud Rate: 115200 @ 64MHz HSI. BRR = 64000000 / 115200 ≈ 556 */
+  // 4. Baud rate (Assuming 64MHz HSI is the source)
   USART3_BRR = 556;
 
-  /* 5. Enable Peripheral */
+  // 5. Enable UE, TE, and RE
   USART3_CR1 = USART_CR1_UE | USART_CR1_TE | USART_CR1_RE;
 }
 
