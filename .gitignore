@@ -39,3 +39,4 @@ Session.vim
 .DS_Store
 .direnv/
 .envrc
+.cache/
