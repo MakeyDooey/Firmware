@@ -20,27 +20,55 @@ OBJ_DIR    := $(BUILD_DIR)/obj
 COMMON     := common
 CM7        := cm7
 CM4        := cm4
+FREERTOS   := middlewares/freertos
+HAL        := middlewares/hal
 PCH_M7_DIR := $(BUILD_DIR)/pch/cm7
 PCH_M4_DIR := $(BUILD_DIR)/pch/cm4
 
 # --- Source Discovery ---
 COMMON_SRCS := $(wildcard $(COMMON)/src/*.c)
-M7_SRCS     := $(wildcard $(CM7)/src/*.c)
-M4_SRCS     := $(wildcard $(CM4)/src/*.c)
+
+M7_C_SRCS   := $(wildcard $(CM7)/src/*.c)
+M7_S_SRCS   := $(wildcard $(CM7)/src/*.s)
+
+M4_C_SRCS   := $(wildcard $(CM4)/src/*.c)
+M4_S_SRCS   := $(wildcard $(CM4)/src/*.s)
+
 COMMON_INC  := $(COMMON)/inc
 
-# --- Object Mapping (The Secret Sauce) ---
-# This ensures every .c file has a unique .o path so they don't overwrite each other
-M7_OBJS        := $(patsubst $(CM7)/src/%.c, $(OBJ_DIR)/m7/%.o, $(M7_SRCS))
-M4_OBJS        := $(patsubst $(CM4)/src/%.c, $(OBJ_DIR)/m4/%.o, $(M4_SRCS))
-COMMON_OBJS_M7 := $(patsubst $(COMMON)/src/%.c, $(OBJ_DIR)/m7/common/%.o, $(COMMON_SRCS))
-COMMON_OBJS_M4 := $(patsubst $(COMMON)/src/%.c, $(OBJ_DIR)/m4/common/%.o, $(COMMON_SRCS))
+# --- FreeRTOS (CM7 only, explicit & minimal) ---
+FREERTOS_SRCS := \
+	$(FREERTOS)/list.c \
+	$(FREERTOS)/queue.c \
+	$(FREERTOS)/tasks.c \
+	$(FREERTOS)/timers.c \
+	$(FREERTOS)/portable/GCC/ARM_CM7/r0p1/port.c \
+	$(FREERTOS)/portable/MemMang/heap_4.c \
+	$(FREERTOS)/cli/FreeRTOS_CLI.c
+
+# --- Object Mapping ---
+M7_OBJS        := $(patsubst $(CM7)/src/%.c,$(OBJ_DIR)/m7/%.o,$(M7_C_SRCS))
+M7_OBJS        += $(patsubst $(CM7)/src/%.s,$(OBJ_DIR)/m7/%.o,$(M7_S_SRCS))
+
+M4_OBJS        := $(patsubst $(CM4)/src/%.c,$(OBJ_DIR)/m4/%.o,$(M4_C_SRCS))
+M4_OBJS        += $(patsubst $(CM4)/src/%.s,$(OBJ_DIR)/m4/%.o,$(M4_S_SRCS))
+
+COMMON_OBJS_M7 := $(patsubst $(COMMON)/src/%.c,$(OBJ_DIR)/m7/common/%.o,$(COMMON_SRCS))
+COMMON_OBJS_M4 := $(patsubst $(COMMON)/src/%.c,$(OBJ_DIR)/m4/common/%.o,$(COMMON_SRCS))
+
+FREERTOS_OBJS  := $(patsubst %.c,$(OBJ_DIR)/m7/%.o,$(FREERTOS_SRCS))
 
 # --- Flags ---
 CFLAGS_BASE := -mthumb -g $(OPT_FLAGS) -Wall -nostartfiles -Winvalid-pch \
-               -I$(COMMON_INC) -I$(CM7)/inc -I$(CM4)/inc
+	-I$(COMMON_INC) \
+	-I$(CM7)/inc -I$(CM4)/inc \
+	-I$(HAL)/inc \
+	-I$(FREERTOS)/include \
+	-I$(FREERTOS)/portable/GCC/ARM_CM7/r0p1 \
+	-I$(FREERTOS)/cli
 
-M7_FLAGS := -mcpu=cortex-m7 -DCORE_CM7 $(CFLAGS_BASE) -I$(PCH_M7_DIR)
+M7_FLAGS := -mcpu=cortex-m7 -mfpu=fpv5-d16 -mfloat-abi=hard -DCORE_CM7 $(CFLAGS_BASE) -I$(PCH_M7_DIR)
+M7_ASFLAGS := -mcpu=cortex-m7 -mfpu=fpv5-d16 -mfloat-abi=hard
 M4_FLAGS := -mcpu=cortex-m4 -DCORE_CM4 $(CFLAGS_BASE) -I$(PCH_M4_DIR)
 
 # --- Primary Targets ---
@@ -54,8 +82,8 @@ all: stats-zero
 build_binaries: $(BUILD_DIR)/cm7.bin $(BUILD_DIR)/cm4.bin
 	@$(SIZE) -B $(BUILD_DIR)/*.elf
 
-# Linking
-$(BUILD_DIR)/cm7.elf: $(M7_OBJS) $(COMMON_OBJS_M7)
+# --- Linking ---
+$(BUILD_DIR)/cm7.elf: $(M7_OBJS) $(COMMON_OBJS_M7) $(FREERTOS_OBJS)
 	@echo "$(CYAN)  LINK [M7]$(NC)"
 	@mkdir -p $(dir $@)
 	@$(CC) $(M7_FLAGS) -T $(CM7)/layout.ld $^ -o $@
@@ -65,29 +93,45 @@ $(BUILD_DIR)/cm4.elf: $(M4_OBJS) $(COMMON_OBJS_M4)
 	@mkdir -p $(dir $@)
 	@$(CC) $(M4_FLAGS) -T $(CM4)/layout.ld $^ -o $@
 
-# Compilation Rules (M7)
+# --- Compilation Rules (M7) ---
 $(OBJ_DIR)/m7/%.o: $(CM7)/src/%.c $(PCH_M7_DIR)/common.h.gch
 	@echo "  CC [M7] $<"
 	@mkdir -p $(dir $@)
 	@$(CC) $(M7_FLAGS) -c $< -o $@
+
+$(OBJ_DIR)/m7/%.o: $(CM7)/src/%.s
+	@echo "  AS [M7] $<"
+	@mkdir -p $(dir $@)
+	@$(CC) $(M7_ASFLAGS) -x assembler-with-cpp -c $< -o $@
 
 $(OBJ_DIR)/m7/common/%.o: $(COMMON)/src/%.c $(PCH_M7_DIR)/common.h.gch
 	@echo "  CC [M7-Common] $<"
 	@mkdir -p $(dir $@)
 	@$(CC) $(M7_FLAGS) -c $< -o $@
 
-# Compilation Rules (M4)
+# --- FreeRTOS compile rule (CM7) ---
+$(OBJ_DIR)/m7/%.o: %.c
+	@echo "  CC [M7-FR] $<"
+	@mkdir -p $(dir $@)
+	@$(CC) $(M7_FLAGS) -c $< -o $@
+
+# --- Compilation Rules (M4) ---
 $(OBJ_DIR)/m4/%.o: $(CM4)/src/%.c $(PCH_M4_DIR)/common.h.gch
 	@echo "  CC [M4] $<"
 	@mkdir -p $(dir $@)
 	@$(CC) $(M4_FLAGS) -c $< -o $@
+
+$(OBJ_DIR)/m4/%.o: $(CM4)/src/%.s
+	@echo "  AS [M4] $<"
+	@mkdir -p $(dir $@)
+	@$(CC) $(M4_FLAGS) -x assembler-with-cpp -c $< -o $@
 
 $(OBJ_DIR)/m4/common/%.o: $(COMMON)/src/%.c $(PCH_M4_DIR)/common.h.gch
 	@echo "  CC [M4-Common] $<"
 	@mkdir -p $(dir $@)
 	@$(CC) $(M4_FLAGS) -c $< -o $@
 
-# Precompiled Headers
+# --- Precompiled Headers ---
 $(PCH_M7_DIR)/common.h.gch: $(COMMON_INC)/common.h
 	@mkdir -p $(PCH_M7_DIR)
 	@$(CC) $(M7_FLAGS) -x c-header $< -o $@
@@ -96,6 +140,7 @@ $(PCH_M4_DIR)/common.h.gch: $(COMMON_INC)/common.h
 	@mkdir -p $(PCH_M4_DIR)
 	@$(CC) $(M4_FLAGS) -x c-header $< -o $@
 
+# --- Binary Output ---
 $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf
 	@$(OBJCOPY) -O binary $< $@
 
