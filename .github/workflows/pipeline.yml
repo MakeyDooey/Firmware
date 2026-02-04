@@ -1,0 +1,84 @@
+name: STM32H7 Dual-Core CI
+
+on:
+  push:
+    branches: [main, feature-sprint-1]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-firmware:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install ARM Toolchain
+        uses: arm-software/toolchain-action@v1
+        with:
+          toolchain: arm-none-eabi
+
+      - name: Install Project Dependencies
+        run: |
+          chmod +x scripts/dependencies.sh
+          ./scripts/dependencies.sh
+
+      # NEW: Check Code Formatting
+      - name: Check Code Style (clang-format)
+        run: |
+          echo "## 🎨 Style Check" >> $GITHUB_STEP_SUMMARY
+          # This finds all .c and .h files and checks if they match .clang-format
+          # --dry-run: don't change files
+          # --Werror: fail if formatting is wrong
+          find common/ cm7/ cm4/ -name "*.c" -o -name "*.h" | xargs clang-format --dry-run --Werror
+          echo "✅ Code style is consistent!" >> $GITHUB_STEP_SUMMARY
+
+      - name: Run Static Analysis (Cppcheck)
+        run: |
+          echo "## 🔍 Static Analysis Report" >> $GITHUB_STEP_SUMMARY
+          cppcheck --enable=warning,performance,portability \
+                   --inline-suppr \
+                   --error-exitcode=1 \
+                   common/ cm7/ cm4/ 2>&1 | tee cppcheck_output.txt || true
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          cat cppcheck_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Cache Build Objects
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ${{ runner.os }}-ccache-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-ccache-
+
+      - name: Build Dual-Core Firmware
+        run: make all -j$(nproc) OPT=small
+
+      - name: Generate Build Summary
+        if: always()
+        run: |
+          echo "## Build Size Report" >> $GITHUB_STEP_SUMMARY
+          echo "### Core M7" >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          [ -f build/cm7.elf ] && arm-none-eabi-size build/cm7.elf >> $GITHUB_STEP_SUMMARY || echo "M7 Build Failed" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Core M4" >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          [ -f build/cm4.elf ] && arm-none-eabi-size build/cm4.elf >> $GITHUB_STEP_SUMMARY || echo "M4 Build Failed" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Build Artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nucleo-H755-Firmware-${{ github.ref_name }}
+          path: |
+            build/cm7.bin
+            build/cm7.elf
+            build/cm4.bin
+            build/cm4.elf

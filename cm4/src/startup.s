@@ -13,11 +13,6 @@
 
 .extern main
 
-/* FreeRTOS handlers */
-.extern vPortSVCHandler
-.extern xPortPendSVHandler
-.extern xPortSysTickHandler
-
 /* Vector table */
 .section .isr_vector, "a", %progbits
 .type g_pfnVectors, %object

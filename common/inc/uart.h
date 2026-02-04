@@ -26,6 +26,6 @@ void uart_puts(const char *s);
  * Blocks until a character is available in the Read Data Register.
  * @return The received character.
  */
-char uart_getc(void);
+int uart_getc(void);
 
 #endif /* UART_H */

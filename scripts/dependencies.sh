@@ -9,6 +9,8 @@ build-essential
 openocd
 gdb-multiarch
 ccache
+cppcheck
+clang-format
 "
 
 echo "Updating system..."
