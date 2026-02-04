@@ -74,3 +74,4 @@ jobs:
           path: |
             build/*.bin
             build/*.elf
+
