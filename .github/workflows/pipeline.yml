@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     # Use the pre-built pro environment
     container:
-      image: ghcr.io/${{ github.repository }}/stm32-builder:latest
+      image: ghcr.io/${{ github.repository_owner }}/stm32-builder:latest
 
     steps:
       - name: Checkout Code
