@@ -160,12 +160,33 @@ stats-report:
 clean:
 	@rm -rf $(BUILD_DIR)
 
-flash:
-	@./scripts/flash.sh
+# --- Helper Script Mappings ---
+FLASH_SCRIPT := scripts/makefile/flash.sh
+WIPE_SCRIPT  := scripts/makefile/wipe.sh
+DB_SERVER    := scripts/makefile/debug_server.sh
+DB_CLIENT    := scripts/makefile/debug_client.sh
+
+.PHONY: flash wipe debug-server debug-client
+
+flash: all
+	@chmod +x $(FLASH_SCRIPT)
+	@./$(FLASH_SCRIPT)
+
 wipe:
-	@./scripts/wipe.sh
-debug-server:
-	@./scripts/debug_server.sh
+	@chmod +x $(WIPE_SCRIPT)
+	@./$(WIPE_SCRIPT)
+
 debug:
-	@./scripts/debug_client.sh $(CORE)
+	@echo "Starting OpenOCD in separate process..."
+	@chmod +x $(DB_SERVER)
+	@./$(DB_SERVER) &
+	@sleep 2
+	@chmod +x $(DB_CLIENT)
+	@./$(DB_CLIENT)
+
+debug_server:
+	@./$(DB_SERVER)
+
+debug_client:
+	@./$(DB_CLIENT) $(CORE)
 
