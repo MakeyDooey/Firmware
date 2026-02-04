@@ -17,12 +17,14 @@ jobs:
         with:
           submodules: recursive
 
+      # Updated to the official ARM software repository
       - name: Install ARM Toolchain
-        uses: open-cmsis-pack/setup-arm-toolchain@v1
+        uses: arm-software/setup-arm-toolchain@v1
+        with:
+          release: 'latest'
 
       - name: Install Project Dependencies
         run: |
-          # Make all scripts in the subdirectory executable
           chmod +x scripts/dependencies/*.sh
           ./scripts/dependencies/dependencies_ci.sh
 
@@ -77,4 +79,3 @@ jobs:
             build/cm7.elf
             build/cm4.bin
             build/cm4.elf
-
