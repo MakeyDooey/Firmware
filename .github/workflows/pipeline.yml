@@ -77,3 +77,4 @@ jobs:
             build/cm7.elf
             build/cm4.bin
             build/cm4.elf
+
