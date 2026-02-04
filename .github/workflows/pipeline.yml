@@ -2,7 +2,7 @@ name: STM32H7 Dual-Core CI
 
 on:
   push:
-    branches: ["main, feature-1-sprint"]
+    branches: ["**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
