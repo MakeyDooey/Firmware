@@ -1,3 +1,18 @@
+# --- Docker Configuration ---
+DOCKER_IMAGE := stm32-h7-builder
+# Persistent cache directory on your local Linux machine
+HOST_CCACHE  := $(HOME)/.ccache_stm32
+
+# DOCKER_RUN Explained:
+# -u: Runs as YOU (prevents 'root' owned files in build/)
+# -v $(CURDIR): Mounts project code
+# -v $(HOST_CCACHE): Mounts the 'brain' (cache) so it survives container restarts
+DOCKER_RUN   := docker run --rm \
+                -u $(shell id -u):$(shell id -g) \
+                -v $(CURDIR):/workspace \
+                -v $(HOST_CCACHE):/workspace/.ccache \
+                $(DOCKER_IMAGE)
+
 # --- Tool Definitions ---
 CCACHE  := $(shell command -v ccache 2> /dev/null)
 CC      := $(CCACHE) arm-none-eabi-gcc
@@ -27,24 +42,21 @@ PCH_M4_DIR := $(BUILD_DIR)/pch/cm4
 
 # --- Source Discovery ---
 COMMON_SRCS := $(wildcard $(COMMON)/src/*.c)
-
 M7_C_SRCS   := $(wildcard $(CM7)/src/*.c)
 M7_S_SRCS   := $(wildcard $(CM7)/src/*.s)
-
 M4_C_SRCS   := $(wildcard $(CM4)/src/*.c)
 M4_S_SRCS   := $(wildcard $(CM4)/src/*.s)
-
 COMMON_INC  := $(COMMON)/inc
 
-# --- FreeRTOS (CM7 only, explicit & minimal) ---
+# --- FreeRTOS (CM7 only) ---
 FREERTOS_SRCS := \
-	$(FREERTOS)/list.c \
-	$(FREERTOS)/queue.c \
-	$(FREERTOS)/tasks.c \
-	$(FREERTOS)/timers.c \
-	$(FREERTOS)/portable/GCC/ARM_CM7/r0p1/port.c \
-	$(FREERTOS)/portable/MemMang/heap_4.c \
-	$(FREERTOS)/cli/FreeRTOS_CLI.c
+        $(FREERTOS)/list.c \
+        $(FREERTOS)/queue.c \
+        $(FREERTOS)/tasks.c \
+        $(FREERTOS)/timers.c \
+        $(FREERTOS)/portable/GCC/ARM_CM7/r0p1/port.c \
+        $(FREERTOS)/portable/MemMang/heap_4.c \
+        $(FREERTOS)/cli/FreeRTOS_CLI.c
 
 # --- Object Mapping ---
 M7_OBJS        := $(patsubst $(CM7)/src/%.c,$(OBJ_DIR)/m7/%.o,$(M7_C_SRCS))
@@ -60,24 +72,35 @@ FREERTOS_OBJS  := $(patsubst %.c,$(OBJ_DIR)/m7/%.o,$(FREERTOS_SRCS))
 
 # --- Flags ---
 CFLAGS_BASE := -mthumb -g $(OPT_FLAGS) -Wall -nostartfiles -Winvalid-pch \
-	-I$(COMMON_INC) \
-	-I$(CM7)/inc -I$(CM4)/inc \
-	-I$(HAL)/inc \
-	-I$(FREERTOS)/include \
-	-I$(FREERTOS)/portable/GCC/ARM_CM7/r0p1 \
-	-I$(FREERTOS)/cli
+        -I$(COMMON_INC) \
+        -I$(CM7)/inc -I$(CM4)/inc \
+        -I$(HAL)/inc \
+        -I$(FREERTOS)/include \
+        -I$(FREERTOS)/portable/GCC/ARM_CM7/r0p1 \
+        -I$(FREERTOS)/cli
 
 M7_FLAGS := -mcpu=cortex-m7 -mfpu=fpv5-d16 -mfloat-abi=hard -DCORE_CM7 $(CFLAGS_BASE) -I$(PCH_M7_DIR)
 M7_ASFLAGS := -mcpu=cortex-m7 -mfpu=fpv5-d16 -mfloat-abi=hard
 M4_FLAGS := -mcpu=cortex-m4 -DCORE_CM4 $(CFLAGS_BASE) -I$(PCH_M4_DIR)
 
-# --- Primary Targets ---
-.PHONY: all clean stats-zero stats-report build_binaries
+# --- Helper Script Mappings ---
+FLASH_SCRIPT := scripts/makefile/flash.sh
+WIPE_SCRIPT  := scripts/makefile/wipe.sh
+DB_SERVER    := scripts/makefile/debug_server.sh
+DB_CLIENT    := scripts/makefile/debug_client.sh
 
-all: stats-zero
-	@$(MAKE) --no-print-directory build_binaries
-	@echo "$(GREEN)Build finished successfully.$(NC)"
-	@$(MAKE) --no-print-directory stats-report
+# --- Primary Targets ---
+.PHONY: all clean stats-zero stats-report build_binaries docker-image docker-build flash wipe debug
+
+all: stats-zero build_binaries stats-report
+
+# Professional Docker Targets
+docker-image:
+	docker build -t $(DOCKER_IMAGE) .
+
+docker-build:
+	@mkdir -p $(HOST_CCACHE)
+	$(DOCKER_RUN) make all OPT=$(OPT)
 
 build_binaries: $(BUILD_DIR)/cm7.bin $(BUILD_DIR)/cm4.bin
 	@$(SIZE) -B $(BUILD_DIR)/*.elf
@@ -109,7 +132,6 @@ $(OBJ_DIR)/m7/common/%.o: $(COMMON)/src/%.c $(PCH_M7_DIR)/common.h.gch
 	@mkdir -p $(dir $@)
 	@$(CC) $(M7_FLAGS) -c $< -o $@
 
-# --- FreeRTOS compile rule (CM7) ---
 $(OBJ_DIR)/m7/%.o: %.c
 	@echo "  CC [M7-FR] $<"
 	@mkdir -p $(dir $@)
@@ -150,25 +172,14 @@ stats-zero:
 
 stats-report:
 	@echo "$(YELLOW)--- Ccache Efficiency ---$(NC)"
-	@if [ ! -z "$(CCACHE)" ]; then \
-		$(CCACHE) -s ; \
-	else \
-		echo "ccache not enabled."; \
-	fi
+	@if [ ! -z "$(CCACHE)" ]; then $(CCACHE) -s ; fi
 	@echo "$(YELLOW)-------------------------$(NC)"
-
+	
 clean:
 	@rm -rf $(BUILD_DIR)
 
-# --- Helper Script Mappings ---
-FLASH_SCRIPT := scripts/makefile/flash.sh
-WIPE_SCRIPT  := scripts/makefile/wipe.sh
-DB_SERVER    := scripts/makefile/debug_server.sh
-DB_CLIENT    := scripts/makefile/debug_client.sh
-
-.PHONY: flash wipe debug-server debug-client
-
-flash: all
+# --- Hardware Targets (Run locally on Host) ---
+flash:
 	@chmod +x $(FLASH_SCRIPT)
 	@./$(FLASH_SCRIPT)
 
@@ -180,13 +191,6 @@ debug:
 	@echo "Starting OpenOCD in separate process..."
 	@chmod +x $(DB_SERVER)
 	@./$(DB_SERVER) &
-	@sleep 2
+	@sleep 3
 	@chmod +x $(DB_CLIENT)
 	@./$(DB_CLIENT)
-
-debug_server:
-	@./$(DB_SERVER)
-
-debug_client:
-	@./$(DB_CLIENT) $(CORE)
-

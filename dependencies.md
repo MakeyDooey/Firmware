@@ -6,8 +6,10 @@ This repository contains a dual-core firmware project for the **STM32H755**. To 
 
 If you are on a Debian-based Linux distribution (Ubuntu/Debian/Mint), you can set up your entire environment with a single command:
 
+```
 chmod \+x scripts/dependencies/dependencies\_user.sh  
 ./scripts/dependencies/dependencies\_user.sh
+```
 
 **What this script does:**
 
@@ -45,18 +47,37 @@ We use a "Core \+ Environment" architecture to keep our CI and User environments
 
 We follow the rules defined in .clang-format. To format your code locally before pushing:
 
+```
 find common/ cm7/ cm4/ \-name "\*.c" \-o \-name "\*.h" | xargs clang-format \-i
+```
 
 ### **2\. Static Analysis**
 
 The CI runs cppcheck on every push. You can run it locally to see warnings:
 
+```
 cppcheck \--enable=warning,performance,portability common/ cm7/ cm4/
+```
 
 ## **🔌 Hardware Debugging**
 
 For the **Nucleo-H755ZI-Q**, use the integrated helper scripts mapped to the root Makefile:
 
-* make flash: Calls scripts/makefile/flash.sh to program the board.  
-* make wipe: Calls scripts/makefile/wipe.sh to erase the flash sectors.  
-* make debug: Starts an OpenOCD server and GDB client session.
+* ```make flash```: Calls scripts/makefile/flash.sh to program the board.  
+* ```make wipe```: Calls scripts/makefile/wipe.sh to erase the flash sectors.  
+* ```make debug```: Starts an OpenOCD server and GDB client session.
+
+## Bonus
+
+* bear: manager for clang's lsp in lazy (running bear -- make will fix your lazy error checking)
+
+```
+sudo apt install bear
+```
+
+* docker: containerization platform to run your builds in isolated environments
+
+```
+sudo apt install docker.io
+sudo usermod -aG docker $USER
+```

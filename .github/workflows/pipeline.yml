@@ -10,6 +10,9 @@ on:
 jobs:
   build-firmware:
     runs-on: ubuntu-latest
+    # Use the pre-built pro environment
+    container:
+      image: ghcr.io/${{ github.repository }}/stm32-builder:latest
 
     steps:
       - name: Checkout Code
@@ -17,44 +20,31 @@ jobs:
         with:
           submodules: recursive
 
-      # Use the most stable and cached ARM toolchain action
-      - name: Install ARM Toolchain
-        uses: carlosperate/arm-none-eabi-gcc-action@v1
+      - name: Cache ccache
+        uses: actions/cache@v4
         with:
-          release: 'latest' # Automatically gets the latest stable GCC from ARM
+          path: .ccache
+          key: ${{ runner.os }}-ccache-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-ccache-
 
-      - name: Install Project Dependencies
-        run: |
-          # Ensure scripts are executable and run CI dependency setup
-          chmod +x scripts/dependencies/*.sh
-          ./scripts/dependencies/dependencies_ci.sh
-
-      - name: Check Code Style (clang-format)
+      - name: Style Check (Clang-Format)
         run: |
           echo "## 🎨 Style Check" >> $GITHUB_STEP_SUMMARY
-          # Dry run to check formatting without modifying files
           find common/ cm7/ cm4/ -name "*.c" -o -name "*.h" | xargs clang-format --dry-run --Werror
           echo "✅ Code style is consistent!" >> $GITHUB_STEP_SUMMARY
 
-      - name: Run Static Analysis (Cppcheck)
+      - name: Static Analysis (Cppcheck)
         run: |
           echo "## 🔍 Static Analysis Report" >> $GITHUB_STEP_SUMMARY
           cppcheck --enable=warning,performance,portability \
-                   --inline-suppr \
-                   --error-exitcode=1 \
+                   --inline-suppr --error-exitcode=1 \
                    common/ cm7/ cm4/ 2>&1 | tee cppcheck_output.txt || true
           echo '```text' >> $GITHUB_STEP_SUMMARY
           cat cppcheck_output.txt >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
-      - name: Cache Build Objects
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ccache
-          key: ${{ runner.os }}-ccache-${{ github.sha }}
-          restore-keys: ${{ runner.os }}-ccache-
-
       - name: Build Dual-Core Firmware
+        # The container already has GCC and Make ready to go
         run: make all -j$(nproc) OPT=small
 
       - name: Generate Build Summary
@@ -70,6 +60,11 @@ jobs:
           echo '```text' >> $GITHUB_STEP_SUMMARY
           [ -f build/cm4.elf ] && arm-none-eabi-size build/cm4.elf >> $GITHUB_STEP_SUMMARY || echo "M4 Build Failed" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Cache Performance" >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          ccache -s >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Build Artifacts
         if: success()
@@ -77,7 +72,5 @@ jobs:
         with:
           name: Nucleo-H755-Firmware-${{ github.ref_name }}
           path: |
-            build/cm7.bin
-            build/cm7.elf
-            build/cm4.bin
-            build/cm4.elf
+            build/*.bin
+            build/*.elf
