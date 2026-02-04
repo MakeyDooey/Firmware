@@ -1,0 +1,43 @@
+# --- Build Artifacts (Make/CMake) ---
+build/
+bin/
+obj/
+*.elf
+*.bin
+*.hex
+*.map
+*.list
+*.o
+*.d
+*.su
+
+# --- Precompiled Headers (PCH) ---
+# .gch files are the binary output of your common.h pre-compilation
+*.gch
+
+# --- Toolchain / GDB / OpenOCD ---
+.gdb_history
+openocd.log
+*.svd
+.gdbinit
+# Added ccache local directory if you ever use a local cache
+.ccache/
+
+# --- Neovim & LSP (LazyVim/Clangd) ---
+.nvim/
+.lsp/
+.clangd/
+# Clangd often creates this file to store local configuration
+.clangd
+compile_commands.json
+.undodir/
+*.swp
+*.swo
+Session.vim
+
+# --- OS & Misc ---
+.DS_Store
+.direnv/
+.envrc
+.cache/
+vendors/
