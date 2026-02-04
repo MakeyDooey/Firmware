@@ -3,7 +3,6 @@ name: Publish Build Image
 on:
   push:
     branches: [main]
-    paths: ['Dockerfile']
   workflow_dispatch:
 
 jobs:
@@ -27,5 +26,4 @@ jobs:
         with:
           context: .
           push: true
-          # We use a lowercase version of the owner name here
           tags: ghcr.io/makeydooey/stm32-builder:latest
